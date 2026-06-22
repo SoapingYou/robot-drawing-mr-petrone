@@ -90,6 +90,15 @@ ax.set_xlim(-link1_length-link2_length, link1_length+link2_length)
 ax.set_ylim(-link1_length-link2_length, link1_length+link2_length)
 ax.set_box_aspect(1)
 fig.subplots_adjust(bottom=0.25)
+
+#for the bloody sake of time, im going to just assume
+#2 links for now
+line1, = ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
+line2, = ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
+ee_dot, = ax.plot(x_og[-1], y_og[-1], 'o', c='green')
+title = ax.set_title('Kinematics Simulation, end effector position: ' 
+                     + str(kinematics_chain.get_final_forward_km_pos(input_list)))
+
 axtheta1 = fig.add_axes((0.25,0.1,0.65,0.03))
 theta1_slider = Slider(
     ax=axtheta1,
@@ -106,13 +115,6 @@ theta2_slider = Slider(
     valmax=90,
     valinit=0
 )
-#for the bloody sake of time, im going to just assume
-#2 links for now
-line1, = ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
-line2, = ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
-ee_dot, = ax.plot(x_og[-1], y_og[-1], 'o', c='green')
-title = ax.set_title('Kinematics Simulation, end effector position: ' 
-                     + str(kinematics_chain.get_final_forward_km_pos(input_list)))
 
 def update(val):
     input_list[0] = np.radians(theta1_slider.val)
@@ -125,10 +127,11 @@ def update(val):
     line1.set_ydata(y_og[0:2])
     line2.set_xdata(x_og[1:])
     line2.set_ydata(y_og[1:])
-    ee_dot.set_xdata(x_og[-1])
-    ee_dot.set_ydata(y_og[-1])
-    title.set_text('Kinematics Simulation, end effector position: ' 
-                     + str(kinematics_chain.get_final_forward_km_pos(input_list)))
+    ee_dot.set_xdata(np.array([x_og[-1]]))
+    ee_dot.set_ydata(np.array([y_og[-1]]))
+    final_title = np.array2string(kinematics_chain.get_final_forward_km_pos(input_list), precision=3)
+    title.set_text(
+        f"Kinematics Simulation, end effector position: {final_title}")
     fig.canvas.draw_idle()
 
 
