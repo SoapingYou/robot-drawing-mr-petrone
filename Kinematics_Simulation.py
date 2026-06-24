@@ -38,10 +38,11 @@ class Link:
         return self.new_dh_matrix
     
 class KinematicsChain:
-    def __init__(self, link_list):
+    def __init__(self, link_list, rr=True):
         self.link_list = link_list
         self.l_no = len(link_list)
         self.origin=np.eye(4)
+        self.rr = rr
     
     def get_final_forward_km_pos(self, input_list): 
         #get forwards kinematics position
@@ -63,8 +64,28 @@ class KinematicsChain:
             self.pos_list = np.concatenate((self.pos_list, 
                                 self.hom_matrix[0:3,3].reshape((1,3))), axis=0)           
         return self.pos_list
+    def get_inverse_kinematics(self, target_pos):
+        #get inverse kinematics position
+        if(self.rr == False):
+            return "can't do inverse kinematics for non rr robots as of now :("
+        target_x = target_pos[0]
+        target_y = target_pos[1]
+        link1_length = self.link_list[0].ai
+        link2_length = self.link_list[1].ai
+        #calculate theta2
+        cos_theta2 = (np.square(target_x) + np.square(target_y) - np.square(link1_length) 
+                    - np.square(link2_length)) / (2 * link1_length * link2_length)
+        theta_2 = np.arccos(cos_theta2)
+        #calculate theta1
+        theta_1 = np.arctan2(target_y, target_x) - np.arctan2((link2_length * np.sin(theta_2)), 
+                                                              (link1_length + link2_length * np.cos(theta_2)))
+        if(-np.pi/2 <= theta_1 <= np.pi / 2 
+           and -np.pi/2 <= theta_2 <= np.pi/2):
+            return np.array([theta_1, theta_2])
+        else:
+            _solution = np.array([theta_1, theta_2])
+            return f"No solution found in bounds (-pi/2 to pi/2): {np.array2string(_solution, precision=3)}"
 
-            
 link1_length = 2
 link2_length = 1
 
