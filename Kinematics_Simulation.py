@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+from matplotlib.patches import Wedge
 
 class Link:
 #   def __init__(self, z_axis : np.array, x_axis : np.array, 
@@ -150,6 +151,67 @@ class KinematicsChain:
             _solution = np.array([theta_1, theta_2])
             return f"No solution found in bounds (-pi/2 to pi/2): {np.array2string(_solution, precision=3)}"
     
+    def plot_im_update(self, val):
+        input_list[0] = np.radians(self.theta1_slider.val)
+        input_list[1] = np.radians(self.theta2_slider.val)
+        all_pos = self.get_all_forward_km_pos(input_list)
+        x_og = all_pos[:,0]
+        y_og = all_pos[:,1]
+        
+        self.line1.set_xdata(x_og[0:2])
+        self.line1.set_ydata(y_og[0:2])
+        self.line2.set_xdata(x_og[1:])
+        self.line2.set_ydata(y_og[1:])
+        self.ee_dot.set_xdata(np.array([x_og[-1]]))
+        self.ee_dot.set_ydata(np.array([y_og[-1]]))
+        self.final_title = np.array2string(self.get_final_forward_km_pos(input_list), precision=3)
+        self.title.set_text(
+            f"Kinematics Simulation, end effector position: {self.final_title}")
+        self.fig.canvas.draw_idle()
+
+    
+    def plot_im(self, original_input_list=np.array([0,0])):
+        if(self.rr == False):
+            return "can't do plotting for non rr robots as of now :("
+        link1_length = self.link_list[0].ai
+        link2_length = self.link_list[1].ai
+        theta_inputs = self.get_inverse_kinematics(original_input_list)
+        theta1 = theta_inputs[0]
+        theta2 = theta_inputs[1]
+        all_pos = self.get_all_forward_km_pos([theta1, theta2])
+
+        x_og = all_pos[:,0]
+        y_og = all_pos[:,1]
+        #z_og = all_pos[:,2]
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlim(-link1_length-link2_length, link1_length+link2_length)
+        self.ax.set_ylim(-link1_length-link2_length, link1_length+link2_length)
+        self.ax.set_box_aspect(1)
+        self.fig.subplots_adjust(bottom=0.25)
+
+        self.line1, = self.ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
+        self.line2, = self.ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
+        self.ee_dot, = self.ax.plot(x_og[-1], y_og[-1], 'o', c='green')
+        self.title = self.ax.set_title('Kinematics Simulation, EE position: ' 
+                            + str(np.array2string(np.array(original_input_list), precision=2))
+                            + '\n theta1: '+f'{np.degrees(theta1):.2f}' +
+                            ', theta2: ' + f'{np.degrees(theta2):.2f}')
+        # THESE ARCS DONT RLLY WORK BC THE ANGLES MIGHT BE NEGATIVE SO I MIGHT NEED LIKE 2 WEDGES AND MULTIPLE IFS OR SOMETHING
+        if(theta1 <0):
+            self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=np.degrees(theta1), theta2=0, color='blue', alpha=0.3)
+        else:
+            self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=0, theta2=np.degrees(theta1), color='blue', alpha=0.3)
+        if(theta2 <0):
+            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1+theta2), theta2=np.degrees(theta1), color='red', alpha=0.3)
+        else:
+            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=theta1, theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
+        self.ax.add_patch(self.angle_annotation_t1)
+        self.ax.add_patch(self.angle_annotation_t2)
+        
+        # self.theta1_slider.on_changed(self.plot_im_update)
+        # self.theta2_slider.on_changed(self.plot_im_update)
+
+
 link1_length = 2
 link2_length = 1
 # z_axis = np.array([0,0,1])
@@ -160,5 +222,5 @@ list_of_links = [link1, link2]
 kinematics_chain = KinematicsChain(list_of_links)
 input_list = [0, 0]
 #print(kinematics_chain.get_final_forward_km_pos(input_list))
-kinematics_chain.plot_fm(original_input_list=input_list)
+kinematics_chain.plot_im(original_input_list=[2.25,0.3])
 plt.show()
