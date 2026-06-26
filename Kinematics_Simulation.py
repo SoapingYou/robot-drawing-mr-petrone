@@ -201,13 +201,13 @@ class KinematicsChain:
             self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=np.degrees(theta1), theta2=0, color='blue', alpha=0.3)
         else:
             self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=0, theta2=np.degrees(theta1), color='blue', alpha=0.3)
-        if(theta2 <0):
+        if(theta2 <theta1):
             self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1+theta2), theta2=np.degrees(theta1), color='red', alpha=0.3)
         else:
-            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=theta1, theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
+            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1), theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
         self.ax.add_patch(self.angle_annotation_t1)
         self.ax.add_patch(self.angle_annotation_t2)
-        
+
         # self.theta1_slider.on_changed(self.plot_im_update)
         # self.theta2_slider.on_changed(self.plot_im_update)
 
@@ -222,5 +222,5 @@ list_of_links = [link1, link2]
 kinematics_chain = KinematicsChain(list_of_links)
 input_list = [0, 0]
 #print(kinematics_chain.get_final_forward_km_pos(input_list))
-kinematics_chain.plot_im(original_input_list=[2.25,0.3])
+kinematics_chain.plot_im(original_input_list=[2.25,1.25])
 plt.show()
