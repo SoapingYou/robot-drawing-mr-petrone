@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
-from matplotlib.patches import Wedge
+from matplotlib.patches import Wedge, Circle
 
 class Link:
 #   def __init__(self, z_axis : np.array, x_axis : np.array, 
@@ -78,6 +78,8 @@ class KinematicsChain:
         #calculate theta2
         cos_theta2 = (np.square(target_x) + np.square(target_y) - np.square(link1_length) 
                     - np.square(link2_length)) / (2 * link1_length * link2_length)
+        if(cos_theta2 < -1 or cos_theta2 > 1):
+            cos_theta2 = np.clip(cos_theta2, -1, 1)
         theta_2 = np.arccos(cos_theta2)
         #calculate theta1
         theta_1 = np.arctan2(target_y, target_x) - np.arctan2((link2_length * np.sin(theta_2)), 
@@ -85,9 +87,11 @@ class KinematicsChain:
         if(-np.pi/2 <= theta_1 <= np.pi / 2 
            and -np.pi/2 <= theta_2 <= np.pi/2):
             return np.array([theta_1, theta_2])
-        else:
+        else: 
+            "No solution found in bounds (-pi/2 to pi/2): {np.array2string(_solution, precision=3)}"
             _solution = np.array([theta_1, theta_2])
-            return f"No solution found in bounds (-pi/2 to pi/2): {np.array2string(_solution, precision=3)}"
+            return _solution
+            
 
 class ArmPlotter:
     def __init__(self, kinematics_chain): 
@@ -151,26 +155,6 @@ class ArmPlotter:
         self.theta1_slider.on_changed(self.plot_fm_update)
         self.theta2_slider.on_changed(self.plot_fm_update)
     
-
-    def plot_im_update(self, val):
-        input_list[0] = np.radians(self.theta1_slider.val)
-        input_list[1] = np.radians(self.theta2_slider.val)
-        all_pos = self.kinematics_chain.get_all_forward_km_pos(input_list)
-        x_og = all_pos[:,0]
-        y_og = all_pos[:,1]
-        
-        self.line1.set_xdata(x_og[0:2])
-        self.line1.set_ydata(y_og[0:2])
-        self.line2.set_xdata(x_og[1:])
-        self.line2.set_ydata(y_og[1:])
-        self.ee_dot.set_xdata(np.array([x_og[-1]]))
-        self.ee_dot.set_ydata(np.array([y_og[-1]]))
-        self.final_title = np.array2string(self.kinematics_chain.get_final_forward_km_pos(input_list), precision=3)
-        self.title.set_text(
-            f"Kinematics Simulation, end effector position: {self.final_title}")
-        self.fig.canvas.draw_idle()
-
-    
     def plot_im(self, original_input_list=np.array([0,0])):
         link1_length = self.kinematics_chain.link_list[0].ai
         link2_length = self.kinematics_chain.link_list[1].ai
@@ -190,26 +174,107 @@ class ArmPlotter:
 
         self.line1, = self.ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
         self.line2, = self.ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
-        self.ee_dot, = self.ax.plot(x_og[-1], y_og[-1], 'o', c='green')
+        self.ee_dot = Circle((x_og[-1], y_og[-1]), 0.1, color='green', alpha=0.5)
         self.title = self.ax.set_title('Kinematics Simulation, EE position: ' 
                             + str(np.array2string(np.array(original_input_list), precision=2))
                             + '\n theta1: '+f'{np.degrees(theta1):.2f}' +
                             ', theta2: ' + f'{np.degrees(theta2):.2f}')
-        if(theta1 <0):
-            self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=np.degrees(theta1), theta2=0, color='blue', alpha=0.3)
-        else:
-            self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=0, theta2=np.degrees(theta1), color='blue', alpha=0.3)
-        if(theta2 <theta1):
-            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1+theta2), theta2=np.degrees(theta1), color='red', alpha=0.3)
-        else:
-            self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1), theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
         
-        self.ax.add_patch(self.angle_annotation_t1)
-        self.ax.add_patch(self.angle_annotation_t2)
+        self.dragging = False
+        self.point = self.ax.add_patch(self.ee_dot)
+        self.invkm_connect()
 
-        # self.theta1_slider.on_changed(self.plot_im_update)
-        # self.theta2_slider.on_changed(self.plot_im_update)
+        if(theta1 <0):
+            self._angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=np.degrees(theta1), theta2=0, color='blue', alpha=0.3)
+        else:
+            self._angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=0, theta2=np.degrees(theta1), color='blue', alpha=0.3)
+        if(theta2 <theta1):
+            self._angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1+theta2), theta2=np.degrees(theta1), color='red', alpha=0.3)
+        else:
+            self._angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1), theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
+        
+        self.angle_annotation_t1 = self.ax.add_patch(self._angle_annotation_t1)
+        self.angle_annotation_t2 = self.ax.add_patch(self._angle_annotation_t2)
 
+    def invkm_near_point(self, x1, y1, x2, y2, threshold=0.1):
+        return np.sqrt((x1 - x2)**2 + (y1 - y2)**2) <= threshold
+    
+    def invkm_clamp_to_bounds(self, x, y):
+        thetaoutputs = self.kinematics_chain.get_inverse_kinematics(np.array([x,y]))
+        theta1 = thetaoutputs[0]
+        theta2 = thetaoutputs[1]
+        theta1=np.clip(theta1, -np.pi/2, np.pi/2)
+        theta2=np.clip(theta2, -np.pi/2, np.pi/2)
+        return self.kinematics_chain.get_final_forward_km_pos([theta1, theta2])[0:2]
+    
+    def invkm_update(self,x,y):
+        # update leg segments based on inverse kinematics
+        # self.point.center = (event.xdata, event.ydata)
+        # change all angles based on inv km
+        thetaoutputs = self.kinematics_chain.get_inverse_kinematics(np.array([x, y]))
+        all_pos = self.kinematics_chain.get_all_forward_km_pos(thetaoutputs)
+        x_og = all_pos[:,0]
+        y_og = all_pos[:,1]
+        
+        self.line1.set_xdata(x_og[0:2])
+        self.line1.set_ydata(y_og[0:2])
+        self.line2.set_xdata(x_og[1:])
+        self.line2.set_ydata(y_og[1:])
+        self.point.set_center((x_og[-1], y_og[-1]))
+        self.final_title = np.array2string(thetaoutputs, precision=3)
+        self.title.set_text(
+            f"Kinematics Simulation, theta values: {self.final_title}")
+        
+        theta1 = thetaoutputs[0]
+        theta2 = thetaoutputs[1]
+        self.angle_annotation_t1.set_center((x_og[0], y_og[0]))
+        self.angle_annotation_t2.set_center((x_og[1], y_og[1]))
+        if(theta1 <0):
+            self.angle_annotation_t1.set_theta1 = np.degrees(theta1)
+            self.angle_annotation_t1.set_theta2 = 0
+        else:
+            self.angle_annotation_t1.set_theta1 = 0
+            self.angle_annotation_t1.set_theta2 = np.degrees(theta1)
+            
+        if(theta2 <theta1):
+            self.angle_annotation_t2.set_theta1 = np.degrees(theta1+theta2)
+            self.angle_annotation_t2.set_theta2 = np.degrees(theta1)
+        else:
+            self.angle_annotation_t2.set_theta1 = np.degrees(theta1)
+            self.angle_annotation_t2.set_theta2 = np.degrees(theta1+theta2)
+        self.fig.canvas.draw_idle()
+
+    def invkm_connect(self):
+        'connect to all the events we need'
+        self.cidpress = self.point.figure.canvas.mpl_connect(
+            'button_press_event', self.invkm_on_press)
+        self.cidrelease = self.point.figure.canvas.mpl_connect(
+            'button_release_event', self.invkm_on_release)
+        self.cidmotion = self.point.figure.canvas.mpl_connect(
+            'motion_notify_event', self.invkm_on_motion)
+    
+    def invkm_disconnect(self):
+        'disconnect all the stored connection ids'
+        self.point.figure.canvas.mpl_disconnect(self.cidpress)
+        self.point.figure.canvas.mpl_disconnect(self.cidrelease)
+        self.point.figure.canvas.mpl_disconnect(self.cidmotion)
+    
+    def invkm_on_press(self, event):
+        if event.inaxes != self.point.axes: return
+        if self.invkm_near_point(event.xdata, event.ydata, self.point.center[0], self.point.center[1]):
+            self.dragging = True
+        else:
+            return
+    def invkm_on_motion(self, event):
+        if not self.dragging: return
+        if event.inaxes != self.point.axes: return
+        # update arm with fwd km on clamped x,y
+        x, y = event.xdata, event.ydata
+        x, y = self.invkm_clamp_to_bounds(x,y)
+        self.invkm_update(x, y)
+
+    def invkm_on_release(self, event):
+        self.dragging = False
 link1_length = 2
 link2_length = 1
 # z_axis = np.array([0,0,1])

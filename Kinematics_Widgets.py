@@ -26,10 +26,20 @@ class DraggablePointInterface:
         if event.inaxes != self.point.axes: return
         if self.near_point(event.xdata, event.ydata, self.point.center[0], self.point.center[1]):
             self.dragging = True
-        else: return
+
+        else:
+            return
     def on_motion(self, event):
         if not self.dragging: return
         if event.inaxes != self.point.axes: return
-        self.point.center = (event.xdata, event.ydata)
+        x, y = event.xdata, event.ydata
+        x, y = self._clamp_to_bounds(x,y)
+#        update arm with fwd km on clamped axis
+#       self.point.center = (event.xdata, event.ydata)
+#       change all angles based on inv km
+#       self.point.figure.canvas.draw()
+
+
+        
     def on_release(self, event):
-        pass
+        self.dragging = False
