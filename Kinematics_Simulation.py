@@ -66,68 +66,6 @@ class KinematicsChain:
                                 self.hom_matrix[0:3,3].reshape((1,3))), axis=0)           
         return self.pos_list
     
-
-    def plot_fm_update(self, val):
-        input_list[0] = np.radians(self.theta1_slider.val)
-        input_list[1] = np.radians(self.theta2_slider.val)
-        all_pos = self.get_all_forward_km_pos(input_list)
-        x_og = all_pos[:,0]
-        y_og = all_pos[:,1]
-        
-        self.line1.set_xdata(x_og[0:2])
-        self.line1.set_ydata(y_og[0:2])
-        self.line2.set_xdata(x_og[1:])
-        self.line2.set_ydata(y_og[1:])
-        self.ee_dot.set_xdata(np.array([x_og[-1]]))
-        self.ee_dot.set_ydata(np.array([y_og[-1]]))
-        self.final_title = np.array2string(self.get_final_forward_km_pos(input_list), precision=3)
-        self.title.set_text(
-            f"Kinematics Simulation, end effector position: {self.final_title}")
-        self.fig.canvas.draw_idle()
-
-    
-    def plot_fm(self, original_input_list=np.array([0,0])):
-        if(self.rr == False):
-            return "can't do plotting for non rr robots as of now :("
-        link1_length = self.link_list[0].ai
-        link2_length = self.link_list[1].ai
-        all_pos = self.get_all_forward_km_pos(original_input_list)
-
-        x_og = all_pos[:,0]
-        y_og = all_pos[:,1]
-        #z_og = all_pos[:,2]
-        self.fig, self.ax = plt.subplots()
-        self.ax.set_xlim(-link1_length-link2_length, link1_length+link2_length)
-        self.ax.set_ylim(-link1_length-link2_length, link1_length+link2_length)
-        self.ax.set_box_aspect(1)
-        self.fig.subplots_adjust(bottom=0.25)
-
-        self.line1, = self.ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
-        self.line2, = self.ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
-        self.ee_dot, = self.ax.plot(x_og[-1], y_og[-1], 'o', c='green')
-        self.title = self.ax.set_title('Kinematics Simulation, end effector position: ' 
-                            + str(self.get_final_forward_km_pos(input_list)))
-        
-        self.axtheta1 = self.fig.add_axes((0.25,0.1,0.65,0.03))
-        self.theta1_slider = Slider(
-            ax=self.axtheta1,
-            label="theta 1",
-            valmin=-90,
-            valmax=90,
-            valinit=0
-        )
-        self.axtheta2 = self.fig.add_axes((0.25,0.05,0.65,0.03))
-        self.theta2_slider = Slider(
-            ax=self.axtheta2,
-            label="theta 2",
-            valmin=-90,
-            valmax=90,
-            valinit=0
-        )
-        self.theta1_slider.on_changed(self.plot_fm_update)
-        self.theta2_slider.on_changed(self.plot_fm_update)
-    
-
     
     def get_inverse_kinematics(self, target_pos):
         #get inverse kinematics position
@@ -150,11 +88,15 @@ class KinematicsChain:
         else:
             _solution = np.array([theta_1, theta_2])
             return f"No solution found in bounds (-pi/2 to pi/2): {np.array2string(_solution, precision=3)}"
-    
-    def plot_im_update(self, val):
+
+class ArmPlotter:
+    def __init__(self, kinematics_chain): 
+        'ASSUME ITS A RR ROBOT FOR NOW. 2DOF ONLY.'
+        self.kinematics_chain = kinematics_chain 
+    def plot_fm_update(self, val):
         input_list[0] = np.radians(self.theta1_slider.val)
         input_list[1] = np.radians(self.theta2_slider.val)
-        all_pos = self.get_all_forward_km_pos(input_list)
+        all_pos = self.kinematics_chain.get_all_forward_km_pos(input_list)
         x_og = all_pos[:,0]
         y_og = all_pos[:,1]
         
@@ -164,21 +106,78 @@ class KinematicsChain:
         self.line2.set_ydata(y_og[1:])
         self.ee_dot.set_xdata(np.array([x_og[-1]]))
         self.ee_dot.set_ydata(np.array([y_og[-1]]))
-        self.final_title = np.array2string(self.get_final_forward_km_pos(input_list), precision=3)
+        self.final_title = np.array2string(self.kinematics_chain.get_final_forward_km_pos(input_list), precision=3)
+        self.title.set_text(
+            f"Kinematics Simulation, end effector position: {self.final_title}")
+        self.fig.canvas.draw_idle()
+
+    
+    def plot_fm(self, original_input_list=np.array([0,0])):
+        link1_length = self.kinematics_chain.link_list[0].ai
+        link2_length = self.kinematics_chain.link_list[1].ai
+        all_pos = self.kinematics_chain.get_all_forward_km_pos(original_input_list)
+
+        x_og = all_pos[:,0]
+        y_og = all_pos[:,1]
+        #z_og = all_pos[:,2]
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlim(-link1_length-link2_length, link1_length+link2_length)
+        self.ax.set_ylim(-link1_length-link2_length, link1_length+link2_length)
+        self.ax.set_box_aspect(1)
+        self.fig.subplots_adjust(bottom=0.25)
+
+        self.line1, = self.ax.plot(x_og[0:2], y_og[0:2], 'o-', lw = 2, c='blue')
+        self.line2, = self.ax.plot(x_og[1:], y_og[1:], 'o-', lw = 2, c='red')
+        self.ee_dot, = self.ax.plot(x_og[-1], y_og[-1], 'o', c='green')
+        self.title = self.ax.set_title('Kinematics Simulation, end effector position: ' 
+                            + str(self.kinematics_chain.get_final_forward_km_pos(input_list)))
+        
+        self.axtheta1 = self.fig.add_axes((0.25,0.1,0.65,0.03))
+        self.theta1_slider = Slider(
+            ax=self.axtheta1,
+            label="theta 1",
+            valmin=-90,
+            valmax=90,
+            valinit=0
+        )
+        self.axtheta2 = self.fig.add_axes((0.25,0.05,0.65,0.03))
+        self.theta2_slider = Slider(
+            ax=self.axtheta2,
+            label="theta 2",
+            valmin=-90,
+            valmax=90,
+            valinit=0
+        )
+        self.theta1_slider.on_changed(self.plot_fm_update)
+        self.theta2_slider.on_changed(self.plot_fm_update)
+    
+
+    def plot_im_update(self, val):
+        input_list[0] = np.radians(self.theta1_slider.val)
+        input_list[1] = np.radians(self.theta2_slider.val)
+        all_pos = self.kinematics_chain.get_all_forward_km_pos(input_list)
+        x_og = all_pos[:,0]
+        y_og = all_pos[:,1]
+        
+        self.line1.set_xdata(x_og[0:2])
+        self.line1.set_ydata(y_og[0:2])
+        self.line2.set_xdata(x_og[1:])
+        self.line2.set_ydata(y_og[1:])
+        self.ee_dot.set_xdata(np.array([x_og[-1]]))
+        self.ee_dot.set_ydata(np.array([y_og[-1]]))
+        self.final_title = np.array2string(self.kinematics_chain.get_final_forward_km_pos(input_list), precision=3)
         self.title.set_text(
             f"Kinematics Simulation, end effector position: {self.final_title}")
         self.fig.canvas.draw_idle()
 
     
     def plot_im(self, original_input_list=np.array([0,0])):
-        if(self.rr == False):
-            return "can't do plotting for non rr robots as of now :("
-        link1_length = self.link_list[0].ai
-        link2_length = self.link_list[1].ai
-        theta_inputs = self.get_inverse_kinematics(original_input_list)
+        link1_length = self.kinematics_chain.link_list[0].ai
+        link2_length = self.kinematics_chain.link_list[1].ai
+        theta_inputs = self.kinematics_chain.get_inverse_kinematics(original_input_list)
         theta1 = theta_inputs[0]
         theta2 = theta_inputs[1]
-        all_pos = self.get_all_forward_km_pos([theta1, theta2])
+        all_pos = self.kinematics_chain.get_all_forward_km_pos([theta1, theta2])
 
         x_og = all_pos[:,0]
         y_og = all_pos[:,1]
@@ -196,7 +195,6 @@ class KinematicsChain:
                             + str(np.array2string(np.array(original_input_list), precision=2))
                             + '\n theta1: '+f'{np.degrees(theta1):.2f}' +
                             ', theta2: ' + f'{np.degrees(theta2):.2f}')
-        # THESE ARCS DONT RLLY WORK BC THE ANGLES MIGHT BE NEGATIVE SO I MIGHT NEED LIKE 2 WEDGES AND MULTIPLE IFS OR SOMETHING
         if(theta1 <0):
             self.angle_annotation_t1 = Wedge((x_og[0], y_og[0]), 0.5, theta1=np.degrees(theta1), theta2=0, color='blue', alpha=0.3)
         else:
@@ -205,12 +203,12 @@ class KinematicsChain:
             self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1+theta2), theta2=np.degrees(theta1), color='red', alpha=0.3)
         else:
             self.angle_annotation_t2 = Wedge((x_og[1], y_og[1]), 0.5, theta1=np.degrees(theta1), theta2=np.degrees(theta1+theta2), color='red', alpha=0.3)
+        
         self.ax.add_patch(self.angle_annotation_t1)
         self.ax.add_patch(self.angle_annotation_t2)
 
         # self.theta1_slider.on_changed(self.plot_im_update)
         # self.theta2_slider.on_changed(self.plot_im_update)
-
 
 link1_length = 2
 link2_length = 1
@@ -222,5 +220,6 @@ list_of_links = [link1, link2]
 kinematics_chain = KinematicsChain(list_of_links)
 input_list = [0, 0]
 #print(kinematics_chain.get_final_forward_km_pos(input_list))
-kinematics_chain.plot_im(original_input_list=[2.25,1.25])
+arm_plotter = ArmPlotter(kinematics_chain)
+arm_plotter.plot_im(original_input_list=[2.25,1.25])
 plt.show()
